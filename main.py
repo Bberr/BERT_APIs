@@ -11,7 +11,6 @@ from sklearn.metrics import accuracy_score, confusion_matrix
 import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
-from sklearn.metrics import confusion_matrix
 from io import BytesIO
 
 root_path = os.path.dirname(os.getcwd())
@@ -28,7 +27,7 @@ def myModel(text):
     return sentiment[predictions[0]]
 
 
-def myModelConfusion(text,label):
+def myModelConfusion(text, label):
     test_data = text
     test_label = label
     labels = []
@@ -49,18 +48,18 @@ def myModelConfusion(text,label):
     print(labels)
     bert_accuracy = accuracy_score(labels, predictions)
 
-    # bert_cn = confusion_matrix(test_label, predictions)
-    # plt.subplots(figsize=(10, 10))
-    # sns.heatmap(bert_cn, annot=True, fmt="1d", cbar=False, xticklabels=labels, yticklabels=labels)
-    # plt.title("Bert Accuracy: {}".format(bert_accuracy), fontsize=20)
-    # plt.xlabel("Predicted", fontsize=15)
-    # plt.ylabel("Actual", fontsize=15)
-    # buffer = BytesIO()
-    # plt.savefig(buffer, format='png')
-    # buffer.seek(0)
-    # b64_image = base64.b64encode(buffer.read()).decode('utf-8')
-    #return b64_image
-    return bert_accuracy
+    bert_cn = confusion_matrix(labels, predictions)
+    plt.subplots(figsize=(10, 10))
+    sns.heatmap(bert_cn, annot=True, fmt="1d", cbar=False, xticklabels=[0, 1, 2], yticklabels=[0, 1, 2])
+    plt.title("Bert Accuracy: {}".format(bert_accuracy), fontsize=20)
+    plt.xlabel("Predicted", fontsize=15)
+    plt.ylabel("Actual", fontsize=15)
+    buffer = BytesIO()
+    plt.savefig(buffer, format='jpg')
+    buffer.seek(0)
+    b64_image = base64.b64encode(buffer.read()).decode('utf-8')
+
+    return bert_accuracy, b64_image
 
 
 if __name__ == '__main__':
@@ -90,9 +89,10 @@ if __name__ == '__main__':
     def confusionMatrix():
         input_text = request.json['text']
         input_label = request.json['label']
-        b64_image = myModelConfusion(input_text,input_label)
+        bert_accuracy, b64_image = myModelConfusion(input_text, input_label)
         return jsonify({
-            'confusion_matrix': b64_image
+            'confusion_matrix': b64_image,
+            'bert_accuracy': bert_accuracy
         })
 
 
