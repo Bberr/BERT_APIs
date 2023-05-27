@@ -7,7 +7,7 @@ from flask_cors import CORS
 from simpletransformers.classification import ClassificationModel, ClassificationArgs
 
 import base64
-from sklearn.metrics import accuracy_score, confusion_matrix
+from sklearn.metrics import accuracy_score, confusion_matrix, precision_score, recall_score, f1_score
 import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
@@ -46,7 +46,20 @@ def myModelConfusion(text, label):
     predictions, raw_outputs = BERT_model.predict(test_data)
     print(predictions)
     print(labels)
+    isTure = 0
+    isFalse = 0
+    for i in range(len(labels)):
+        if predictions[i] == labels[i]:
+            isTure +=1
+        else:
+            isFalse +=1
+
+    scoreResult = [isTure, isFalse]
     bert_accuracy = accuracy_score(labels, predictions)
+
+    bert_precision = precision_score(labels, predictions, average='macro')
+    bert_recall = recall_score(labels, predictions, average='macro')
+    bert_f1 = f1_score(labels, predictions, average='macro')
 
     bert_cn = confusion_matrix(labels, predictions)
     plt.subplots(figsize=(10, 10))
@@ -59,7 +72,7 @@ def myModelConfusion(text, label):
     buffer.seek(0)
     b64_image = base64.b64encode(buffer.read()).decode('utf-8')
 
-    return bert_accuracy, b64_image
+    return bert_accuracy, bert_precision, bert_recall, bert_f1, b64_image, scoreResult
 
 
 if __name__ == '__main__':
@@ -89,10 +102,14 @@ if __name__ == '__main__':
     def confusionMatrix():
         input_text = request.json['text']
         input_label = request.json['label']
-        bert_accuracy, b64_image = myModelConfusion(input_text, input_label)
+        bert_accuracy, bert_precision, bert_recall, bert_f1, b64_image, scoreResult = myModelConfusion(input_text, input_label)
         return jsonify({
             'confusion_matrix': b64_image,
-            'bert_accuracy': bert_accuracy
+            'bert_accuracy': bert_accuracy,
+            'bert_precision': bert_precision,
+            'bert_recall': bert_recall,
+            'bert_f1': bert_f1,
+            'scoreResult': scoreResult
         })
 
 
