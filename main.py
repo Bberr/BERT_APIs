@@ -11,6 +11,7 @@ from sklearn.metrics import accuracy_score, confusion_matrix, precision_score, r
 import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
+from transformers import AutoModel
 from io import BytesIO
 
 root_path = os.path.dirname(os.getcwd())
@@ -20,11 +21,22 @@ sys.path.insert(0, root_path)
 def myModel(text):
     BERT_model = ClassificationModel(
         "bert", "best_model",
-        use_cuda=False
+        use_cuda=True,
     )
     predictions, raw_outputs = BERT_model.predict(text)
     sentiment = ['Negative', 'Neutral', 'Positive']
-    return sentiment[predictions[0]]
+    # Define the list of numbers
+    numbers = raw_outputs[0]
+
+    # Apply softmax
+    softmax_values = np.exp(numbers) / np.sum(np.exp(numbers))
+    softmax_values = {
+        "Positive": softmax_values[2],
+        "Neutral": softmax_values[1],
+        "Negative": softmax_values[0]
+    }
+
+    return sentiment[predictions[0]], softmax_values
 
 
 def myModelConfusion(text, label):
@@ -41,7 +53,7 @@ def myModelConfusion(text, label):
 
     BERT_model = ClassificationModel(
         "bert", "best_model",
-        use_cuda=False
+        use_cuda=True
     )
     predictions, raw_outputs = BERT_model.predict(test_data)
     print(predictions)
@@ -50,9 +62,9 @@ def myModelConfusion(text, label):
     isFalse = 0
     for i in range(len(labels)):
         if predictions[i] == labels[i]:
-            isTure +=1
+            isTure += 1
         else:
-            isFalse +=1
+            isFalse += 1
 
     scoreResult = [isTure, isFalse]
     bert_accuracy = accuracy_score(labels, predictions)
@@ -61,10 +73,11 @@ def myModelConfusion(text, label):
     bert_recall = recall_score(labels, predictions, average='macro')
     bert_f1 = f1_score(labels, predictions, average='macro')
 
+    blue_palette = sns.color_palette("Blues")
+
     bert_cn = confusion_matrix(labels, predictions)
     plt.subplots(figsize=(10, 10))
-    sns.heatmap(bert_cn, annot=True, fmt="1d", cbar=False, xticklabels=[0, 1, 2], yticklabels=[0, 1, 2])
-    plt.title("Bert Accuracy: {}".format(bert_accuracy), fontsize=20)
+    sns.heatmap(bert_cn, annot=True, fmt="1d", cbar=False, xticklabels=[0, 1, 2], yticklabels=[0, 1, 2], annot_kws={"size": 25}, cmap=blue_palette)
     plt.xlabel("Predicted", fontsize=15)
     plt.ylabel("Actual", fontsize=15)
     buffer = BytesIO()
@@ -77,7 +90,7 @@ def myModelConfusion(text, label):
 
 if __name__ == '__main__':
     app = Flask(__name__)
-    CORS(app, origins=["http://localhost:3000"], supports_credentials=True, methods=["GET", "POST"])
+    CORS(app, origins=["http://127.0.0.1:5173"], supports_credentials=True, methods=["GET", "POST"])
 
 
     @app.route('/')
@@ -91,10 +104,11 @@ if __name__ == '__main__':
         input_text = request.json['data']
         input_text = [input_text]
         print(input_text)
-        result = myModel(input_text)
+        result, softmax = myModel(input_text)
         print(myModel(input_text))
         return jsonify({
-            'rate': result
+            'rate': result,
+            'softmax': softmax
         })
 
 
@@ -102,7 +116,8 @@ if __name__ == '__main__':
     def confusionMatrix():
         input_text = request.json['text']
         input_label = request.json['label']
-        bert_accuracy, bert_precision, bert_recall, bert_f1, b64_image, scoreResult = myModelConfusion(input_text, input_label)
+        bert_accuracy, bert_precision, bert_recall, bert_f1, b64_image, scoreResult = myModelConfusion(input_text,
+                                                                                                       input_label)
         return jsonify({
             'confusion_matrix': b64_image,
             'bert_accuracy': bert_accuracy,
